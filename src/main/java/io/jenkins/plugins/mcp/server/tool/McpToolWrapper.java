@@ -198,7 +198,23 @@ public class McpToolWrapper {
             if (isMethodParameterRequired(method, i)) {
                 required.add(parameterName);
             }
-            ObjectNode parameterNode = SUBTYPE_SCHEMA_GENERATOR.generateSchema(parameterType);
+
+            ObjectNode parameterNode;
+
+            // Special handling for Map types to generate proper object schema
+            // Fix for: Map<String, Object> parameters were generating type="string" instead of type="object"
+            if (parameterType instanceof ParameterizedType pt
+                    && pt.getRawType() instanceof Class<?> rawClass
+                    && Map.class.isAssignableFrom(rawClass)) {
+                // Generate object schema with additionalProperties for Map types
+                parameterNode = objectMapper.createObjectNode();
+                parameterNode.put("type", "object");
+                parameterNode.put("additionalProperties", true);
+                log.trace("Generated object schema for Map parameter: {}", parameterName);
+            } else {
+                parameterNode = SUBTYPE_SCHEMA_GENERATOR.generateSchema(parameterType);
+            }
+
             String parameterDescription = getMethodParameterDescription(method, i);
             if (StringUtils.hasText(parameterDescription)) {
                 parameterNode.put(DESCRIPTION, parameterDescription);
